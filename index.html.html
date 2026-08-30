@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가화고 캐릭터 도감</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --wood-1:#c9b384;
+    --wood-2:#b89a63;
+    --paper:#f4ecd8;
+    --card:#fbf7ec;
+    --card-edge:#e7dcc0;
+    --ink:#2e2a22;
+    --ink-soft:#6f6552;
+    --rule:#cdbb8e;
+    --rule-strong:#a8956a;
+    --brass:#a9863f;
+    --brass-light:#d8bd7d;
+    --red:#a3382c;
+    --green:#4f6b52;
+    --shadow: rgba(46,38,20,0.28);
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    font-family:"Malgun Gothic","맑은 고딕",sans-serif;
+    color:var(--ink);
+    background:
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 26px),
+      linear-gradient(180deg, var(--wood-1), var(--wood-2));
+    background-attachment: fixed;
+  }
+  button, input, textarea{ font-family:inherit; }
+
+  #app{ min-height:100vh; padding: 28px 18px 120px; }
+
+  .setup-warning{
+    max-width: 640px; margin: 0 auto 20px;
+    background:#fff3ea; border:1px solid var(--red); color:#5a2119;
+    border-radius:6px; padding:16px 18px; font-size:13px; line-height:1.7;
+  }
+  .setup-warning code{ background:#f1e2da; padding:1px 5px; border-radius:3px; }
+
+  .drawer-plate{
+    max-width: 720px;
+    margin: 0 auto 30px;
+    background: linear-gradient(180deg, var(--brass-light), var(--brass));
+    border-radius: 6px;
+    padding: 4px;
+    box-shadow: 0 10px 24px var(--shadow), inset 0 0 0 1px rgba(255,255,255,0.25);
+  }
+  .drawer-plate-inner{
+    background: var(--paper);
+    border-radius: 3px;
+    padding: 22px 20px 16px;
+    text-align:center;
+    border: 1px solid rgba(46,38,20,0.15);
+  }
+  .site-title{ margin:0; font-size: 30px; font-weight: 700; letter-spacing: 2px; color: var(--ink); }
+  .site-sub{ margin: 6px 0 18px; font-size: 12.5px; letter-spacing: 3px; color: var(--ink-soft); }
+  .search-slot{ display:flex; justify-content:center; }
+  .search-slot input{
+    width: 100%; max-width: 380px; padding: 10px 14px; border-radius: 3px;
+    border: 1px solid var(--rule-strong); background: #fffdf6; font-size: 14px; color: var(--ink); outline:none;
+  }
+  .search-slot input:focus{ border-color: var(--red); box-shadow: 0 0 0 2px rgba(163,56,44,0.12); }
+
+  .grid-wrap{ max-width: 980px; margin: 0 auto; }
+  .grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 720px){ .grid{ grid-template-columns: repeat(2, 1fr); gap:14px; } .site-title{ font-size:24px; } }
+  @media (max-width: 440px){ .grid{ grid-template-columns: 1fr; } }
+
+  .empty-note{
+    text-align:center; color:#4b4335; background: rgba(251,247,236,0.85);
+    border: 1px dashed var(--rule-strong); border-radius: 6px; padding: 30px 16px;
+    max-width: 480px; margin: 20px auto; font-size: 14px; line-height:1.6;
+  }
+
+  .card-token{
+    position:relative; background: var(--card); border: 1px solid var(--card-edge); border-radius: 4px;
+    padding: 16px 12px 12px; cursor:pointer; box-shadow: 0 6px 14px var(--shadow);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .card-token:hover{ transform: translateY(-4px) rotate(-0.4deg); box-shadow: 0 12px 22px var(--shadow); }
+  .punch-hole{
+    position:absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 12px; height: 12px; border-radius:50%; background: var(--wood-2);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+  }
+  .token-photo{
+    margin-top: 12px; width: 100%; aspect-ratio: 1/1; border-radius: 3px; overflow:hidden;
+    background: #e9e1cb; border: 1px solid var(--rule); display:flex; align-items:center; justify-content:center;
+  }
+  .token-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .stamp{
+    position:absolute; border: 2.5px solid var(--red); color: var(--red); font-weight:700;
+    padding: 3px 8px; border-radius: 4px; font-size: 11px; letter-spacing: 2px;
+    transform: rotate(-16deg); opacity: 0.85; background: rgba(255,255,255,0.35);
+    mix-blend-mode: multiply; pointer-events:none;
+  }
+  .card-token .stamp{ top: 44px; right: 6px; font-size:10px; padding:2px 6px; }
+  .token-name{ margin-top: 10px; font-size: 15px; font-weight: 700; text-align:center; border-bottom: 1px dashed var(--rule-strong); padding-bottom: 6px; }
+  .token-meta{ margin-top: 6px; text-align:center; font-size: 12px; color: var(--ink-soft); letter-spacing: 0.5px; }
+
+  .fab{
+    position: fixed; right: 22px; bottom: 22px; width: 56px; height:56px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--brass-light), var(--brass)); color: #fff;
+    border: none; font-size: 28px; line-height:1; cursor:pointer;
+    box-shadow: 0 8px 18px var(--shadow), inset 0 0 0 2px rgba(255,255,255,0.3); z-index: 50;
+  }
+  .fab:active{ transform: scale(0.94); }
+
+  .back-bar{ max-width: 640px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:space-between; }
+  .back-btn{ background:none; border:none; cursor:pointer; color:#3a3324; font-size:13px; font-weight:700; letter-spacing:1px; padding: 6px 4px; }
+  .back-btn:hover{ color: var(--red); }
+
+  .index-card{
+    max-width: 640px; margin: 0 auto; background: var(--card); border: 1px solid var(--card-edge);
+    border-radius: 6px; padding: 26px 26px 22px; box-shadow: 0 14px 30px var(--shadow); position:relative;
+  }
+  .index-card .punch-hole{ top:10px; }
+  .detail-photo-wrap{
+    position:relative; width: 160px; height:160px; margin: 14px auto 6px; border-radius: 4px;
+    overflow:hidden; background:#e9e1cb; border: 1px solid var(--rule);
+  }
+  .detail-photo-wrap img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .detail-photo-wrap .stamp{ top:auto; bottom:8px; right:-10px; font-size:14px; }
+
+  .detail-name{ text-align:center; font-size: 22px; font-weight:700; margin: 10px 0 2px; }
+  .detail-role{ text-align:center; font-size:11px; color: var(--ink-soft); letter-spacing:2px; margin-bottom: 16px; }
+
+  .field-line{ display:flex; border-bottom: 1px dashed var(--rule); padding: 9px 2px; font-size: 14px; gap: 10px; }
+  .field-line .label{ flex: 0 0 100px; color: var(--ink-soft); font-size: 12px; letter-spacing: 1px; padding-top: 2px; }
+  .field-line .value{ flex:1; white-space: pre-wrap; line-height:1.55; }
+  .field-line .value.empty{ color:#a89d87; }
+
+  .detail-actions{ display:flex; justify-content:center; gap: 14px; margin-top: 20px; }
+  .action-link{
+    background:none; border:none; cursor:pointer; font-size: 12.5px; letter-spacing:1px; font-weight:700;
+    padding: 8px 14px; border: 1px solid var(--rule-strong); border-radius: 3px; color: var(--ink); background: #fffdf6;
+  }
+  .action-link:hover{ border-color: var(--ink); }
+  .action-link.danger{ color: var(--red); border-color: var(--red); }
+  .action-link.danger:hover{ background: rgba(163,56,44,0.08); }
+
+  .form-title{ text-align:center; font-size:18px; font-weight:700; margin: 4px 0 18px; letter-spacing:1px; }
+  .form-row{ margin-bottom: 16px; }
+  .form-row label.field-label{ display:block; font-size:12px; color:var(--ink-soft); letter-spacing:1px; margin-bottom: 6px; }
+  .form-row input[type=text], .form-row input[type=number], .form-row textarea{
+    width:100%; padding: 9px 10px; border: 1px solid var(--rule-strong); border-radius: 3px;
+    background: #fffdf6; font-size: 14px; color: var(--ink); outline:none; resize: vertical;
+  }
+  .form-row input:focus, .form-row textarea:focus{ border-color: var(--red); box-shadow: 0 0 0 2px rgba(163,56,44,0.1); }
+  .form-row textarea{ min-height: 64px; }
+  .inline-row{ display:flex; gap: 10px; }
+  .inline-row > div{ flex:1; min-width:0; }
+
+  .segment{ display:flex; gap:8px; flex-wrap:wrap; }
+  .segment button{
+    flex: 1; padding: 9px 6px; border: 1px solid var(--rule-strong); background: #fffdf6; border-radius: 3px;
+    cursor:pointer; font-size: 13px; color: var(--ink-soft); font-weight:700; letter-spacing:0.5px;
+  }
+  .segment button.selected{ background: var(--ink); color: #fbf7ec; border-color: var(--ink); }
+
+  .photo-upload{
+    width: 140px; height:140px; margin: 4px auto 4px; border-radius: 4px; border: 2px dashed var(--rule-strong);
+    background: #efe7d1; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    overflow:hidden; position:relative; color: var(--ink-soft); font-size: 12px; text-align:center; line-height:1.4;
+  }
+  .photo-upload img{ width:100%; height:100%; object-fit:cover; }
+  .photo-upload input{ display:none; }
+
+  .form-actions{ display:flex; justify-content:center; gap:12px; margin-top: 22px; }
+  .btn-primary{
+    background: var(--ink); color:#fbf7ec; border:none; padding: 11px 24px; border-radius:3px; cursor:pointer;
+    font-size:14px; font-weight:700; letter-spacing:1px;
+  }
+  .btn-primary:hover{ background:#171410; }
+  .btn-primary.danger{ background: var(--red); }
+  .btn-primary.danger:hover{ background:#832c22; }
+  .btn-secondary{
+    background:#fffdf6; color:var(--ink-soft); border:1px solid var(--rule-strong); padding: 11px 24px;
+    border-radius:3px; cursor:pointer; font-size:14px; letter-spacing:1px;
+  }
+  .required-note{ text-align:center; font-size:11px; color:var(--ink-soft); margin-top:8px; }
+
+  .loading-note{ text-align:center; color:#4b4335; padding: 40px 0; font-size:14px; }
+
+  .modal-overlay{
+    position: fixed; inset: 0; background: rgba(20,16,8,0.45); display:none;
+    align-items:center; justify-content:center; z-index: 200; padding: 20px;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background: var(--card); border-radius: 6px; padding: 22px 22px 18px; max-width: 320px; width: 100%;
+    box-shadow: 0 16px 34px rgba(0,0,0,0.35); border: 1px solid var(--card-edge);
+  }
+  .modal-text{ font-size: 14px; line-height:1.6; text-align:center; margin-bottom: 18px; }
+  .modal-actions{ display:flex; justify-content:center; gap:10px; }
+
+  .toast{
+    position: fixed; left:50%; bottom: 30px; transform: translateX(-50%); background: var(--ink); color:#fbf7ec;
+    padding: 10px 18px; border-radius: 4px; font-size: 13px; letter-spacing:0.5px;
+    box-shadow: 0 8px 18px var(--shadow); z-index: 100; opacity:0; transition: opacity .25s ease; pointer-events:none;
+  }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+
+  // =====================================================================
+  // 1) Supabase 프로젝트 연결 정보 — 아래 두 줄을 본인 프로젝트 값으로 바꿔주세요.
+  //    (Project Settings > API 에서 확인 가능)
+  // =====================================================================
+  var SUPABASE_URL = "https://rwltrztysllmtowsmfho.supabase.co/";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3bHRyenR5c2xsbXRvd3NtZmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTYxMzIsImV4cCI6MjEwMzY3MjEzMn0.XMVQ_belP6UHW-eIkKxLUFyEP3pjXSRY6BAHW0Wnk_0";
+  // =====================================================================
+
+  var configured = SUPABASE_URL.indexOf("YOUR-PROJECT-ID") === -1 && SUPABASE_ANON_KEY.indexOf("YOUR-ANON-PUBLIC-KEY") === -1;
+  var sb = null;
+  if(configured && window.supabase){
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  var PLACEHOLDER_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+    '<rect width="100" height="100" fill="#e9e1cb"/>' +
+    '<circle cx="50" cy="38" r="18" fill="#cbbf9e"/>' +
+    '<path d="M15 90 Q50 58 85 90 Z" fill="#cbbf9e"/>' +
+    '</svg>'
+  );
+
+  var state = {
+    view: "home",
+    loading: true,
+    characters: [],
+    searchTerm: "",
+    detailId: null,
+    formMode: "add",
+    formData: null
+  };
+
+  function emptyForm(){
+    return {
+      id: null, photo_url: null, role: "학생", name: "", grade: "", class_num: "",
+      age: "", gender: "", height: "", club: "", personality: "", traits: "",
+      death_info: "", friends: ""
+    };
+  }
+
+  function uuid(){
+    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "id-" + Date.now() + "-" + Math.floor(Math.random()*100000);
+  }
+
+  function showToast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(function(){ t.classList.remove("show"); }, 2400);
+  }
+
+  function escapeHtml(s){
+    if(s === undefined || s === null) return "";
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // ---------------- Supabase data layer ----------------
+  function loadAll(){
+    state.loading = true;
+    render();
+    if(!sb){ state.loading = false; render(); return; }
+    sb.from("characters").select("*").order("created_at", { ascending:false })
+      .then(function(res){
+        if(res.error){ throw res.error; }
+        state.characters = res.data || [];
+        state.loading = false;
+        render();
+      })
+      .catch(function(err){
+        state.loading = false;
+        render();
+        showToast("목록을 불러오지 못했어요: " + (err.message || "알 수 없는 오류"));
+      });
+  }
+
+  function uploadPhotoIfNeeded(f){
+    if(!f._newPhotoBlob) return Promise.resolve(f.photo_url || null);
+    var path = "characters/" + f.id + "-" + Date.now() + ".jpg";
+    return sb.storage.from(BUCKET).upload(path, f._newPhotoBlob, { contentType: "image/jpeg", upsert: true })
+      .then(function(res){
+        if(res.error) throw res.error;
+        var pub = sb.storage.from(BUCKET).getPublicUrl(path);
+        return pub.data.publicUrl;
+      });
+  }
+
+  function insertCharacter(f){
+    return uploadPhotoIfNeeded(f).then(function(url){
+      var row = {
+        id: f.id, name: f.name, role: f.role, grade: f.grade, class_num: f.class_num,
+        age: f.age, gender: f.gender, height: f.height, club: f.club, personality: f.personality,
+        traits: f.traits, death_info: f.death_info, friends: f.friends, photo_url: url
+      };
+      return sb.from("characters").insert([row]).select().then(function(res){
+        if(res.error) throw res.error;
+        return res.data[0];
+      });
+    });
+  }
+
+  function updateCharacter(f){
+    return uploadPhotoIfNeeded(f).then(function(url){
+      var row = {
+        name: f.name, role: f.role, grade: f.grade, class_num: f.class_num,
+        age: f.age, gender: f.gender, height: f.height, club: f.club, personality: f.personality,
+        traits: f.traits, death_info: f.death_info, friends: f.friends, photo_url: url
+      };
+      return sb.from("characters").update(row).eq("id", f.id).select().then(function(res){
+        if(res.error) throw res.error;
+        return res.data[0];
+      });
+    });
+  }
+
+  function deleteCharacter(c){
+    return sb.from("characters").delete().eq("id", c.id).then(function(res){
+      if(res.error) throw res.error;
+    });
+  }
+
+  // ---------------- render ----------------
+  function render(){
+    var app = document.getElementById("app");
+    var warning = !configured ? renderSetupWarning() : "";
+    if(state.view === "home"){ app.innerHTML = warning + renderHome(); bindHome(); }
+    else if(state.view === "detail"){ app.innerHTML = warning + renderDetail(); bindDetail(); }
+    else if(state.view === "form"){ app.innerHTML = warning + renderForm(); bindForm(); }
+  }
+
+  function renderSetupWarning(){
+    return '<div class="setup-warning">⚠ 아직 Supabase 연결 정보가 입력되지 않았어요.<br>' +
+      '코드 상단의 <code>SUPABASE_URL</code>과 <code>SUPABASE_ANON_KEY</code> 값을 본인 프로젝트 값으로 바꿔주세요. ' +
+      '그 전까지는 목록 조회/등록/수정/삭제가 동작하지 않아요.</div>';
+  }
+
+  // ---- HOME ----
+  function renderGridContent(){
+    var html = "";
+    if(state.loading){
+      html += '<div class="loading-note">서랍을 여는 중...</div>';
+    } else {
+      var term = state.searchTerm.trim().toLowerCase();
+      var list = state.characters.filter(function(c){
+        if(!term) return true;
+        var haystack = [
+          c.name,
+          c.grade ? (c.grade + "학년") : "", c.grade,
+          c.class_num ? (c.class_num + "반") : "", c.class_num,
+          c.club
+        ].filter(Boolean).join(" ").toLowerCase();
+        return haystack.indexOf(term) !== -1;
+      });
+      if(!list.length){
+        html += '<div class="empty-note">'+(state.characters.length ? '검색 결과가 없어요.' : '아직 등록된 캐릭터가 없어요.<br>오른쪽 아래 + 버튼으로 첫 번째 캐릭터를 등록해보세요.')+'</div>';
+      } else {
+        html += '<div class="grid">';
+        list.forEach(function(c){
+          var meta = [c.grade ? (c.grade+"학년") : null, c.class_num ? (c.class_num+"반") : null, c.gender || null].filter(Boolean).join(" | ") || "정보 없음";
+          var stamp = (c.death_info && c.death_info.trim()) ? '<div class="stamp">사망/감염</div>' : "";
+          html += '<div class="card-token" data-id="'+c.id+'">' +
+                    '<div class="punch-hole"></div>' +
+                    '<div class="token-photo"><img src="'+(c.photo_url || PLACEHOLDER_SVG)+'" alt=""></div>' +
+                    stamp +
+                    '<div class="token-name">'+escapeHtml(c.name || "이름 없음")+'</div>' +
+                    '<div class="token-meta">'+escapeHtml(meta)+'</div>' +
+                  '</div>';
+        });
+        html += '</div>';
+      }
+    }
+    return html;
+  }
+
+  function renderHome(){
+    var html = "";
+    html += '<div class="drawer-plate"><div class="drawer-plate-inner">';
+    html += '<h1 class="site-title">가화고 캐릭터 도감</h1>';
+    html += '<div class="site-sub">CHARACTER  CARD  CATALOG</div>';
+    html += '<div class="search-slot"><input id="searchInput" type="text" placeholder="이름 · 학년 · 반 · 동아리로 검색" value="'+escapeHtml(state.searchTerm)+'"></div>';
+    html += '</div></div>';
+    html += '<div class="grid-wrap" id="gridWrap">' + renderGridContent() + '</div>';
+    html += '<button class="fab" id="addFab" title="새 캐릭터 등록">+</button>';
+    return html;
+  }
+
+  function bindGridTokens(){
+    document.querySelectorAll(".card-token").forEach(function(el){
+      el.addEventListener("click", function(){
+        state.detailId = el.getAttribute("data-id");
+        state.view = "detail";
+        render();
+        window.scrollTo(0,0);
+      });
+    });
+  }
+
+  function bindHome(){
+    var search = document.getElementById("searchInput");
+    if(search){
+      search.addEventListener("input", function(e){
+        state.searchTerm = e.target.value;
+        var gridWrap = document.getElementById("gridWrap");
+        if(gridWrap){ gridWrap.innerHTML = renderGridContent(); bindGridTokens(); }
+      });
+    }
+    bindGridTokens();
+    var fab = document.getElementById("addFab");
+    if(fab) fab.addEventListener("click", function(){
+      state.formMode = "add";
+      state.formData = emptyForm();
+      state.view = "form";
+      render();
+      window.scrollTo(0,0);
+    });
+  }
+
+  // ---- DETAIL ----
+  function findChar(id){
+    for(var i=0;i<state.characters.length;i++){ if(state.characters[i].id === id) return state.characters[i]; }
+    return null;
+  }
+
+  function fieldLine(label, value){
+    var v = (value && String(value).trim()) ? escapeHtml(value) : "정보 없음";
+    var cls = (value && String(value).trim()) ? "value" : "value empty";
+    return '<div class="field-line"><div class="label">'+label+'</div><div class="'+cls+'">'+v+'</div></div>';
+  }
+
+  function renderDetail(){
+    var c = findChar(state.detailId);
+    if(!c){
+      return '<div class="back-bar"><button class="back-btn" id="backBtn">← 도감으로</button></div><div class="empty-note">캐릭터를 찾을 수 없어요.</div>';
+    }
+    var html = "";
+    html += '<div class="back-bar"><button class="back-btn" id="backBtn">← 도감으로</button></div>';
+    html += '<div class="index-card"><div class="punch-hole"></div>';
+    html += '<div class="detail-photo-wrap"><img src="'+(c.photo_url || PLACEHOLDER_SVG)+'" alt="">';
+    if(c.death_info && c.death_info.trim()) html += '<div class="stamp">사망/감염</div>';
+    html += '</div>';
+    html += '<div class="detail-name">'+escapeHtml(c.name || "이름 없음")+'</div>';
+    html += '<div class="detail-role">'+escapeHtml(c.role || "")+'</div>';
+
+    var line1 = [c.grade?(c.grade+"학년"):null, c.class_num?(c.class_num+"반"):null, c.club?c.club:null].filter(Boolean).join("  |  ");
+    var line2 = [c.age?(c.age+"세"):null, c.height?(c.height+"cm"):null, c.gender?c.gender:null].filter(Boolean).join("  |  ");
+
+    html += fieldLine("학년|반|동아리", line1);
+    html += fieldLine("나이|키|성별", line2);
+    html += fieldLine("성격", c.personality);
+    html += fieldLine("특징", c.traits);
+    html += fieldLine("사망/감염경위", c.death_info);
+    html += fieldLine("친구 관계", c.friends);
+
+    html += '<div class="detail-actions">';
+    html += '<button class="action-link" id="editBtn">정보 수정</button>';
+    html += '<button class="action-link danger" id="deleteBtn">캐릭터 삭제</button>';
+    html += '</div></div>';
+
+    html += '<div class="modal-overlay" id="deleteOverlay"><div class="modal-box">' +
+              '<div class="modal-text">"'+escapeHtml(c.name||"이 캐릭터")+'"를 정말 삭제할까요?<br>이 작업은 되돌릴 수 없어요.</div>' +
+              '<div class="modal-actions">' +
+                '<button class="btn-secondary" id="deleteCancelBtn">취소</button>' +
+                '<button class="btn-primary danger" id="deleteConfirmBtn">삭제하기</button>' +
+              '</div></div></div>';
+    return html;
+  }
+
+  function bindDetail(){
+    var back = document.getElementById("backBtn");
+    if(back) back.addEventListener("click", function(){ state.view="home"; render(); window.scrollTo(0,0); });
+
+    var editBtn = document.getElementById("editBtn");
+    if(editBtn) editBtn.addEventListener("click", function(){
+      var c = findChar(state.detailId);
+      if(!c) return;
+      state.formMode = "edit";
+      state.formData = JSON.parse(JSON.stringify(c));
+      state.view = "form";
+      render();
+      window.scrollTo(0,0);
+    });
+
+    var overlay = document.getElementById("deleteOverlay");
+    var delBtn = document.getElementById("deleteBtn");
+    if(delBtn) delBtn.addEventListener("click", function(){ if(overlay) overlay.classList.add("show"); });
+
+    var cancelDel = document.getElementById("deleteCancelBtn");
+    if(cancelDel) cancelDel.addEventListener("click", function(){ if(overlay) overlay.classList.remove("show"); });
+    if(overlay) overlay.addEventListener("click", function(e){ if(e.target === overlay) overlay.classList.remove("show"); });
+
+    var confirmDel = document.getElementById("deleteConfirmBtn");
+    if(confirmDel) confirmDel.addEventListener("click", function(){
+      var c = findChar(state.detailId);
+      if(!c || !sb) return;
+      confirmDel.disabled = true;
+      confirmDel.textContent = "삭제 중...";
+      deleteCharacter(c).then(function(){
+        state.characters = state.characters.filter(function(x){ return x.id !== c.id; });
+        state.view = "home";
+        render();
+        showToast("삭제했어요.");
+      }).catch(function(err){
+        showToast("삭제에 실패했어요: " + (err.message || "다시 시도해주세요."));
+        confirmDel.disabled = false;
+        confirmDel.textContent = "삭제하기";
+        if(overlay) overlay.classList.remove("show");
+      });
+    });
+  }
+
+  // ---- FORM ----
+  function segmentHtml(name, options, current){
+    var html = '<div class="segment" data-field="'+name+'">';
+    options.forEach(function(opt){
+      html += '<button type="button" class="'+(current===opt?"selected":"")+'" data-val="'+escapeHtml(opt)+'">'+escapeHtml(opt)+'</button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderForm(){
+    var f = state.formData || emptyForm();
+    var html = "";
+    html += '<div class="back-bar"><button class="back-btn" id="cancelTop">← 취소</button></div>';
+    html += '<div class="index-card"><div class="punch-hole"></div>';
+    html += '<div class="form-title">'+(state.formMode==="edit" ? "캐릭터 정보 수정" : "새로운 캐릭터 등록")+'</div>';
+
+    html += '<div class="form-row"><label class="photo-upload" id="photoUpload">';
+    html += '<img id="photoPreview" src="'+(f.photo_url || PLACEHOLDER_SVG)+'" style="'+(f.photo_url?'':'display:none;')+'">';
+    html += '<span id="photoPlaceholder" style="'+(f.photo_url?'display:none;':'')+'">사진 올리기<br>(클릭)</span>';
+    html += '<input type="file" id="photoInput" accept="image/*">';
+    html += '</label></div>';
+
+    html += '<div class="form-row"><label class="field-label">구분</label>'+segmentHtml("role", ["학생","선생","기타"], f.role)+'</div>';
+    html += '<div class="form-row"><label class="field-label">이름</label><input type="text" id="f_name" value="'+escapeHtml(f.name)+'" placeholder="이름을 입력하세요"></div>';
+
+    html += '<div class="form-row"><label class="field-label">학년 | 반</label>';
+    html += '<div class="inline-row"><div style="flex:1.4">'+segmentHtml("grade", ["1","2","3"], f.grade)+'</div>';
+    html += '<div style="flex:1"><input type="text" id="f_class" value="'+escapeHtml(f.class_num)+'" placeholder="반"></div></div></div>';
+
+    html += '<div class="form-row"><label class="field-label">나이 | 성별 | 키</label><div class="inline-row">';
+    html += '<div><input type="text" id="f_age" value="'+escapeHtml(f.age)+'" placeholder="나이"></div>';
+    html += '<div><input type="text" id="f_gender" value="'+escapeHtml(f.gender)+'" placeholder="성별"></div>';
+    html += '<div><input type="text" id="f_height" value="'+escapeHtml(f.height)+'" placeholder="키(cm)"></div>';
+    html += '</div></div>';
+
+    html += '<div class="form-row"><label class="field-label">동아리</label><input type="text" id="f_club" value="'+escapeHtml(f.club)+'" placeholder="동아리"></div>';
+    html += '<div class="form-row"><label class="field-label">성격</label><textarea id="f_personality" placeholder="성격을 적어주세요">'+escapeHtml(f.personality)+'</textarea></div>';
+    html += '<div class="form-row"><label class="field-label">특징</label><textarea id="f_traits" placeholder="외형, 습관 등 특징을 적어주세요">'+escapeHtml(f.traits)+'</textarea></div>';
+    html += '<div class="form-row"><label class="field-label">사망/감염경위</label><textarea id="f_death" placeholder="해당되는 경우에만 적어주세요">'+escapeHtml(f.death_info)+'</textarea></div>';
+    html += '<div class="form-row"><label class="field-label">친구 관계</label><textarea id="f_friends" placeholder="친구, 관계된 인물을 적어주세요">'+escapeHtml(f.friends)+'</textarea></div>';
+
+    html += '<div class="form-actions">';
+    html += '<button class="btn-secondary" id="cancelBtn">취소</button>';
+    html += '<button class="btn-primary" id="saveBtn">'+(state.formMode==="edit"?"저장하기":"등록하기")+'</button>';
+    html += '</div>';
+    html += '<div class="required-note">이름은 꼭 입력해주세요. 등록한 정보는 이 링크에 접속한 모든 사람에게 공개돼요.</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function resizeToBlob(file, cb){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        var maxDim = 420;
+        var w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+        var canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob){ cb(blob, canvas.toDataURL("image/jpeg", 0.75)); }, "image/jpeg", 0.75);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function bindForm(){
+    var f = state.formData;
+
+    function goCancel(){
+      if(state.formMode === "edit" && f && f.id){ state.detailId = f.id; state.view = "detail"; }
+      else { state.view = "home"; }
+      render();
+      window.scrollTo(0,0);
+    }
+    var cancelBtn = document.getElementById("cancelBtn");
+    if(cancelBtn) cancelBtn.addEventListener("click", goCancel);
+    var cancelTop = document.getElementById("cancelTop");
+    if(cancelTop) cancelTop.addEventListener("click", goCancel);
+
+    document.querySelectorAll(".segment").forEach(function(seg){
+      var field = seg.getAttribute("data-field");
+      seg.querySelectorAll("button").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          f[field] = btn.getAttribute("data-val");
+          seg.querySelectorAll("button").forEach(function(b){ b.classList.remove("selected"); });
+          btn.classList.add("selected");
+        });
+      });
+    });
+
+    var photoUpload = document.getElementById("photoUpload");
+    var photoInput = document.getElementById("photoInput");
+    if(photoUpload) photoUpload.addEventListener("click", function(){ photoInput.click(); });
+    if(photoInput) photoInput.addEventListener("change", function(e){
+      var file = e.target.files[0];
+      if(!file) return;
+      resizeToBlob(file, function(blob, previewUrl){
+        f._newPhotoBlob = blob;
+        document.getElementById("photoPreview").src = previewUrl;
+        document.getElementById("photoPreview").style.display = "block";
+        document.getElementById("photoPlaceholder").style.display = "none";
+      });
+    });
+
+    var saveBtn = document.getElementById("saveBtn");
+    if(saveBtn) saveBtn.addEventListener("click", function(){
+      if(!sb){ showToast("Supabase 연결 정보를 먼저 입력해주세요."); return; }
+      f.name = document.getElementById("f_name").value.trim();
+      f.class_num = document.getElementById("f_class").value.trim();
+      f.age = document.getElementById("f_age").value.trim();
+      f.gender = document.getElementById("f_gender").value.trim();
+      f.height = document.getElementById("f_height").value.trim();
+      f.club = document.getElementById("f_club").value.trim();
+      f.personality = document.getElementById("f_personality").value.trim();
+      f.traits = document.getElementById("f_traits").value.trim();
+      f.death_info = document.getElementById("f_death").value.trim();
+      f.friends = document.getElementById("f_friends").value.trim();
+
+      if(!f.name){ showToast("이름을 입력해주세요."); return; }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = "저장 중...";
+
+      var isNew = !f.id;
+      if(isNew) f.id = uuid();
+
+      var op = isNew ? insertCharacter(f) : updateCharacter(f);
+      op.then(function(savedRow){
+        if(isNew){ state.characters.unshift(savedRow); }
+        else { state.characters = state.characters.map(function(c){ return c.id === savedRow.id ? savedRow : c; }); }
+        state.detailId = savedRow.id;
+        state.view = "detail";
+        render();
+        window.scrollTo(0,0);
+        showToast(isNew ? "등록했어요." : "저장했어요.");
+      }).catch(function(err){
+        showToast("저장에 실패했어요: " + (err.message || "다시 시도해주세요."));
+        saveBtn.disabled = false;
+        saveBtn.textContent = state.formMode==="edit" ? "저장하기" : "등록하기";
+      });
+    });
+  }
+
+  loadAll();
+})();
+</script>
+</body>
+</html>
