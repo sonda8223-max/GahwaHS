@@ -225,8 +225,8 @@
   // 1) Supabase 프로젝트 연결 정보 — 아래 두 줄을 본인 프로젝트 값으로 바꿔주세요.
   //    (Project Settings > API 에서 확인 가능)
   // =====================================================================
-  var SUPABASE_URL = "https://rwltrztysllmtowsmfho.supabase.co/";
-  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3bHRyenR5c2xsbXRvd3NtZmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTYxMzIsImV4cCI6MjEwMzY3MjEzMn0.XMVQ_belP6UHW-eIkKxLUFyEP3pjXSRY6BAHW0Wnk_0";
+  var SUPABASE_URL = "https://YOUR-PROJECT-ID.supabase.co";
+  var SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
   var BUCKET = "character-photos";
   // =====================================================================
 
@@ -373,8 +373,8 @@
       });
     } else if(sortBy === "teacher"){
       arr.sort(function(a,b){ return (a.role==="선생"?0:1) - (b.role==="선생"?0:1); });
-    } else if(sortBy === "student"){
-      arr.sort(function(a,b){ return (a.role==="학생"?0:1) - (b.role==="학생"?0:1); });
+    } else if(sortBy === "name"){
+      arr.sort(function(a,b){ return (a.name||"").localeCompare(b.name||"", "ko"); });
     }
     return arr;
   }
@@ -430,9 +430,9 @@
     html += '</div></div>';
     html += '<div class="sort-slot"><select id="sortSelect">' +
       '<option value=""'+(state.sortBy===""?' selected':'')+'>기본순 (최신 등록순)</option>' +
+      '<option value="name"'+(state.sortBy==="name"?' selected':'')+'>이름순</option>' +
       '<option value="grade"'+(state.sortBy==="grade"?' selected':'')+'>학년순</option>' +
-      '<option value="teacher"'+(state.sortBy==="teacher"?' selected':'')+'>교사 먼저</option>' +
-      '<option value="student"'+(state.sortBy==="student"?' selected':'')+'>학생 먼저</option>' +
+      '<option value="teacher"'+(state.sortBy==="teacher"?' selected':'')+'>교사 순</option>' +
       '</select></div>';
     html += '<div class="grid-wrap" id="gridWrap">' + renderGridContent() + '</div>';
     html += '<button class="fab" id="addFab" title="새 캐릭터 등록">+</button>';
