@@ -66,6 +66,12 @@
     border: 1px solid var(--rule-strong); background: #fffdf6; font-size: 14px; color: var(--ink); outline:none;
   }
   .search-slot input:focus{ border-color: var(--red); box-shadow: 0 0 0 2px rgba(163,56,44,0.12); }
+  .sort-slot{ display:flex; justify-content:flex-start; max-width: 980px; margin: 0 auto 16px; padding: 0 2px; }
+  .sort-slot select{
+    padding: 7px 10px; border-radius: 3px; border: 1px solid var(--rule-strong);
+    background: #fffdf6; font-size: 12.5px; color: var(--ink-soft); outline:none; cursor:pointer;
+  }
+  .sort-slot select:focus{ border-color: var(--red); }
 
   .grid-wrap{ max-width: 980px; margin: 0 auto; }
   .grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -220,7 +226,8 @@
   //    (Project Settings > API 에서 확인 가능)
   // =====================================================================
   var SUPABASE_URL = "https://rwltrztysllmtowsmfho.supabase.co/";
-  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3bHRyenR5c2xsbXRvd3NtZmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTYxMzIsImV4cCI6MjEwMzY3MjEzMn0.XMVQ_belP6UHW-eIkKxLUFyEP3pjXSRY6BAHW0Wnk_0";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3bHRyenR5c2xsbXRvd3NtZmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTYxMzIsImV4cCI6MjEwMzY3MjEzMn0.XMVQ_belP6UHW-eIkKxLUFyEP3pjXSRY6BAHW0Wnk_0
+";
   var BUCKET = "character-photos";
   // =====================================================================
 
@@ -243,6 +250,7 @@
     loading: true,
     characters: [],
     searchTerm: "",
+    sortBy: "",
     detailId: null,
     formMode: "add",
     formData: null
@@ -250,7 +258,7 @@
 
   function emptyForm(){
     return {
-      id: null, photo_url: null, role: "학생", name: "", grade: "", class_num: "",
+      id: null, photo_url: null, role: "학생", name: "", grade: "", class_num: "", subject: "",
       age: "", gender: "", height: "", club: "", personality: "", traits: "",
       death_info: "", friends: ""
     };
@@ -306,7 +314,7 @@
   function insertCharacter(f){
     return uploadPhotoIfNeeded(f).then(function(url){
       var row = {
-        id: f.id, name: f.name, role: f.role, grade: f.grade, class_num: f.class_num,
+        id: f.id, name: f.name, role: f.role, grade: f.grade, class_num: f.class_num, subject: f.subject,
         age: f.age, gender: f.gender, height: f.height, club: f.club, personality: f.personality,
         traits: f.traits, death_info: f.death_info, friends: f.friends, photo_url: url
       };
@@ -320,7 +328,7 @@
   function updateCharacter(f){
     return uploadPhotoIfNeeded(f).then(function(url){
       var row = {
-        name: f.name, role: f.role, grade: f.grade, class_num: f.class_num,
+        name: f.name, role: f.role, grade: f.grade, class_num: f.class_num, subject: f.subject,
         age: f.age, gender: f.gender, height: f.height, club: f.club, personality: f.personality,
         traits: f.traits, death_info: f.death_info, friends: f.friends, photo_url: url
       };
@@ -353,6 +361,24 @@
   }
 
   // ---- HOME ----
+  function sortList(list, sortBy){
+    var arr = list.slice();
+    if(sortBy === "club"){
+      arr.sort(function(a,b){ return (a.club||"").localeCompare(b.club||"", "ko"); });
+    } else if(sortBy === "grade"){
+      arr.sort(function(a,b){
+        var ga = a.grade ? parseInt(a.grade,10) : 99;
+        var gb = b.grade ? parseInt(b.grade,10) : 99;
+        return ga - gb;
+      });
+    } else if(sortBy === "teacher"){
+      arr.sort(function(a,b){ return (a.role==="선생"?0:1) - (b.role==="선생"?0:1); });
+    } else if(sortBy === "student"){
+      arr.sort(function(a,b){ return (a.role==="학생"?0:1) - (b.role==="학생"?0:1); });
+    }
+    return arr;
+  }
+
   function renderGridContent(){
     var html = "";
     if(state.loading){
@@ -362,19 +388,24 @@
       var list = state.characters.filter(function(c){
         if(!term) return true;
         var haystack = [
-          c.name,
+          c.name, c.role,
           c.grade ? (c.grade + "학년") : "", c.grade,
           c.class_num ? (c.class_num + "반") : "", c.class_num,
-          c.club
+          c.club, c.subject
         ].filter(Boolean).join(" ").toLowerCase();
         return haystack.indexOf(term) !== -1;
       });
+      list = sortList(list, state.sortBy);
       if(!list.length){
         html += '<div class="empty-note">'+(state.characters.length ? '검색 결과가 없어요.' : '아직 등록된 캐릭터가 없어요.<br>오른쪽 아래 + 버튼으로 첫 번째 캐릭터를 등록해보세요.')+'</div>';
       } else {
         html += '<div class="grid">';
         list.forEach(function(c){
-          var meta = [c.grade ? (c.grade+"학년") : null, c.class_num ? (c.class_num+"반") : null, c.gender || null].filter(Boolean).join(" | ") || "정보 없음";
+          var metaParts;
+          if(c.role === "선생"){ metaParts = [c.subject || null, c.gender || null]; }
+          else if(c.role === "기타"){ metaParts = [c.gender || null]; }
+          else { metaParts = [c.grade ? (c.grade+"학년") : null, c.class_num ? (c.class_num+"반") : null, c.gender || null]; }
+          var meta = metaParts.filter(Boolean).join(" | ") || "정보 없음";
           var stamp = (c.death_info && c.death_info.trim()) ? '<div class="stamp">사망/감염</div>' : "";
           html += '<div class="card-token" data-id="'+c.id+'">' +
                     '<div class="punch-hole"></div>' +
@@ -395,8 +426,15 @@
     html += '<div class="drawer-plate"><div class="drawer-plate-inner">';
     html += '<h1 class="site-title">가화고 캐릭터 도감</h1>';
     html += '<div class="site-sub">CHARACTER  CARD  CATALOG</div>';
-    html += '<div class="search-slot"><input id="searchInput" type="text" placeholder="이름 · 학년 · 반 · 동아리로 검색" value="'+escapeHtml(state.searchTerm)+'"></div>';
+    html += '<div class="search-slot"><input id="searchInput" type="text" placeholder="이름 · 학년 · 반 · 동아리 · 학생/선생으로 검색" value="'+escapeHtml(state.searchTerm)+'"></div>';
     html += '</div></div>';
+    html += '<div class="sort-slot"><select id="sortSelect">' +
+      '<option value=""'+(state.sortBy===""?' selected':'')+'>기본순 (최신 등록순)</option>' +
+      '<option value="club"'+(state.sortBy==="club"?' selected':'')+'>동아리순</option>' +
+      '<option value="grade"'+(state.sortBy==="grade"?' selected':'')+'>학년순</option>' +
+      '<option value="teacher"'+(state.sortBy==="teacher"?' selected':'')+'>교사 먼저</option>' +
+      '<option value="student"'+(state.sortBy==="student"?' selected':'')+'>학생 먼저</option>' +
+      '</select></div>';
     html += '<div class="grid-wrap" id="gridWrap">' + renderGridContent() + '</div>';
     html += '<button class="fab" id="addFab" title="새 캐릭터 등록">+</button>';
     return html;
@@ -418,6 +456,14 @@
     if(search){
       search.addEventListener("input", function(e){
         state.searchTerm = e.target.value;
+        var gridWrap = document.getElementById("gridWrap");
+        if(gridWrap){ gridWrap.innerHTML = renderGridContent(); bindGridTokens(); }
+      });
+    }
+    var sortSelect = document.getElementById("sortSelect");
+    if(sortSelect){
+      sortSelect.addEventListener("change", function(e){
+        state.sortBy = e.target.value;
         var gridWrap = document.getElementById("gridWrap");
         if(gridWrap){ gridWrap.innerHTML = renderGridContent(); bindGridTokens(); }
       });
@@ -459,10 +505,21 @@
     html += '<div class="detail-name">'+escapeHtml(c.name || "이름 없음")+'</div>';
     html += '<div class="detail-role">'+escapeHtml(c.role || "")+'</div>';
 
-    var line1 = [c.grade?(c.grade+"학년"):null, c.class_num?(c.class_num+"반"):null, c.club?c.club:null].filter(Boolean).join("  |  ");
+    var line1Label, line1Parts;
+    if(c.role === "선생"){
+      line1Label = "담당 과목 | 동아리";
+      line1Parts = [c.subject?c.subject:null, c.club?c.club:null];
+    } else if(c.role === "기타"){
+      line1Label = "동아리";
+      line1Parts = [c.club?c.club:null];
+    } else {
+      line1Label = "학년 | 반 | 동아리";
+      line1Parts = [c.grade?(c.grade+"학년"):null, c.class_num?(c.class_num+"반"):null, c.club?c.club:null];
+    }
+    var line1 = line1Parts.filter(Boolean).join("  |  ");
     var line2 = [c.age?(c.age+"세"):null, c.height?(c.height+"cm"):null, c.gender?c.gender:null].filter(Boolean).join("  |  ");
 
-    html += fieldLine("학년|반|동아리", line1);
+    html += fieldLine(line1Label, line1);
     html += fieldLine("나이|키|성별", line2);
     html += fieldLine("성격", c.personality);
     html += fieldLine("특징", c.traits);
@@ -543,18 +600,23 @@
     html += '<div class="index-card"><div class="punch-hole"></div>';
     html += '<div class="form-title">'+(state.formMode==="edit" ? "캐릭터 정보 수정" : "새로운 캐릭터 등록")+'</div>';
 
+    var previewSrc = f._newPhotoPreview || f.photo_url;
     html += '<div class="form-row"><label class="photo-upload" id="photoUpload">';
-    html += '<img id="photoPreview" src="'+(f.photo_url || PLACEHOLDER_SVG)+'" style="'+(f.photo_url?'':'display:none;')+'">';
-    html += '<span id="photoPlaceholder" style="'+(f.photo_url?'display:none;':'')+'">사진 올리기<br>(클릭)</span>';
+    html += '<img id="photoPreview" src="'+(previewSrc || PLACEHOLDER_SVG)+'" style="'+(previewSrc?'':'display:none;')+'">';
+    html += '<span id="photoPlaceholder" style="'+(previewSrc?'display:none;':'')+'">사진 올리기<br>(클릭)</span>';
     html += '<input type="file" id="photoInput" accept="image/*">';
     html += '</label></div>';
 
     html += '<div class="form-row"><label class="field-label">구분</label>'+segmentHtml("role", ["학생","선생","기타"], f.role)+'</div>';
     html += '<div class="form-row"><label class="field-label">이름</label><input type="text" id="f_name" value="'+escapeHtml(f.name)+'" placeholder="이름을 입력하세요"></div>';
 
-    html += '<div class="form-row"><label class="field-label">학년 | 반</label>';
-    html += '<div class="inline-row"><div style="flex:1.4">'+segmentHtml("grade", ["1","2","3"], f.grade)+'</div>';
-    html += '<div style="flex:1"><input type="text" id="f_class" value="'+escapeHtml(f.class_num)+'" placeholder="반"></div></div></div>';
+    if(f.role === "학생"){
+      html += '<div class="form-row"><label class="field-label">학년 | 반</label>';
+      html += '<div class="inline-row"><div style="flex:1.4">'+segmentHtml("grade", ["1","2","3"], f.grade)+'</div>';
+      html += '<div style="flex:1"><input type="text" id="f_class" value="'+escapeHtml(f.class_num)+'" placeholder="반"></div></div></div>';
+    } else if(f.role === "선생"){
+      html += '<div class="form-row"><label class="field-label">담당 과목</label><input type="text" id="f_subject" value="'+escapeHtml(f.subject)+'" placeholder="담당 과목"></div>';
+    }
 
     html += '<div class="form-row"><label class="field-label">나이 | 성별 | 키</label><div class="inline-row">';
     html += '<div><input type="text" id="f_age" value="'+escapeHtml(f.age)+'" placeholder="나이"></div>';
@@ -572,7 +634,7 @@
     html += '<button class="btn-secondary" id="cancelBtn">취소</button>';
     html += '<button class="btn-primary" id="saveBtn">'+(state.formMode==="edit"?"저장하기":"등록하기")+'</button>';
     html += '</div>';
-    html += '<div class="required-note">이름은 꼭 입력해주세요. </div>';
+    html += '<div class="required-note">이름은 꼭 입력해주세요. 등록한 정보는 이 링크에 접속한 모든 사람에게 공개돼요.</div>';
     html += '</div>';
     return html;
   }
@@ -589,6 +651,10 @@
         var canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         var ctx = canvas.getContext("2d");
+        // 투명 배경(PNG 등)이 JPEG로 저장되며 검게 나오는 것을 막기 위해,
+        // 그리기 전에 사이트 톤에 맞는 밝은 배경색을 먼저 깔아준다.
+        ctx.fillStyle = "#e9e1cb";
+        ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
         canvas.toBlob(function(blob){ cb(blob, canvas.toDataURL("image/jpeg", 0.75)); }, "image/jpeg", 0.75);
       };
@@ -611,11 +677,30 @@
     var cancelTop = document.getElementById("cancelTop");
     if(cancelTop) cancelTop.addEventListener("click", goCancel);
 
+    function syncFormFieldsIntoData(){
+      var ids = {
+        f_name:"name", f_class:"class_num", f_subject:"subject", f_age:"age",
+        f_gender:"gender", f_height:"height", f_club:"club", f_personality:"personality",
+        f_traits:"traits", f_death:"death_info", f_friends:"friends"
+      };
+      Object.keys(ids).forEach(function(elId){
+        var el = document.getElementById(elId);
+        if(el) f[ids[elId]] = el.value;
+      });
+    }
+
     document.querySelectorAll(".segment").forEach(function(seg){
       var field = seg.getAttribute("data-field");
       seg.querySelectorAll("button").forEach(function(btn){
         btn.addEventListener("click", function(){
           f[field] = btn.getAttribute("data-val");
+          if(field === "role"){
+            // 구분(학생/선생/기타)이 바뀌면 표시되는 입력란 자체가 달라지므로
+            // 지금까지 입력한 값을 먼저 저장해두고 폼을 다시 그린다.
+            syncFormFieldsIntoData();
+            render();
+            return;
+          }
           seg.querySelectorAll("button").forEach(function(b){ b.classList.remove("selected"); });
           btn.classList.add("selected");
         });
@@ -630,6 +715,7 @@
       if(!file) return;
       resizeToBlob(file, function(blob, previewUrl){
         f._newPhotoBlob = blob;
+        f._newPhotoPreview = previewUrl;
         document.getElementById("photoPreview").src = previewUrl;
         document.getElementById("photoPreview").style.display = "block";
         document.getElementById("photoPlaceholder").style.display = "none";
@@ -640,7 +726,10 @@
     if(saveBtn) saveBtn.addEventListener("click", function(){
       if(!sb){ showToast("Supabase 연결 정보를 먼저 입력해주세요."); return; }
       f.name = document.getElementById("f_name").value.trim();
-      f.class_num = document.getElementById("f_class").value.trim();
+      var classEl = document.getElementById("f_class");
+      var subjectEl = document.getElementById("f_subject");
+      if(classEl) f.class_num = classEl.value.trim();
+      if(subjectEl) f.subject = subjectEl.value.trim();
       f.age = document.getElementById("f_age").value.trim();
       f.gender = document.getElementById("f_gender").value.trim();
       f.height = document.getElementById("f_height").value.trim();
@@ -649,6 +738,10 @@
       f.traits = document.getElementById("f_traits").value.trim();
       f.death_info = document.getElementById("f_death").value.trim();
       f.friends = document.getElementById("f_friends").value.trim();
+
+      // 구분(학생/선생/기타)에 맞지 않는 항목은 저장 전에 비워서 정리한다.
+      if(f.role !== "학생"){ f.grade = ""; f.class_num = ""; }
+      if(f.role !== "선생"){ f.subject = ""; }
 
       if(!f.name){ showToast("이름을 입력해주세요."); return; }
 
