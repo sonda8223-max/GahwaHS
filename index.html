@@ -225,8 +225,8 @@
   // 1) Supabase 프로젝트 연결 정보 — 아래 두 줄을 본인 프로젝트 값으로 바꿔주세요.
   //    (Project Settings > API 에서 확인 가능)
   // =====================================================================
-  var SUPABASE_URL = "https://rwltrztysllmtowsmfho.supabase.co/";
-  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3bHRyenR5c2xsbXRvd3NtZmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTYxMzIsImV4cCI6MjEwMzY3MjEzMn0.XMVQ_belP6UHW-eIkKxLUFyEP3pjXSRY6BAHW0Wnk_0";
+  var SUPABASE_URL = "https://YOUR-PROJECT-ID.supabase.co";
+  var SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
   var BUCKET = "character-photos";
   // =====================================================================
 
@@ -362,9 +362,7 @@
   // ---- HOME ----
   function sortList(list, sortBy){
     var arr = list.slice();
-    if(sortBy === "club"){
-      arr.sort(function(a,b){ return (a.club||"").localeCompare(b.club||"", "ko"); });
-    } else if(sortBy === "grade"){
+    if(sortBy === "grade"){
       arr.sort(function(a,b){
         var ga = a.grade ? parseInt(a.grade,10) : 99;
         var gb = b.grade ? parseInt(b.grade,10) : 99;
@@ -429,7 +427,6 @@
     html += '</div></div>';
     html += '<div class="sort-slot"><select id="sortSelect">' +
       '<option value=""'+(state.sortBy===""?' selected':'')+'>기본순 (최신 등록순)</option>' +
-      '<option value="club"'+(state.sortBy==="club"?' selected':'')+'>동아리순</option>' +
       '<option value="grade"'+(state.sortBy==="grade"?' selected':'')+'>학년순</option>' +
       '<option value="teacher"'+(state.sortBy==="teacher"?' selected':'')+'>교사 먼저</option>' +
       '<option value="student"'+(state.sortBy==="student"?' selected':'')+'>학생 먼저</option>' +
